@@ -1,0 +1,155 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    
+    // ===============================================================
+    // Helper Functions
+    // ===============================================================
+    
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+    
+    function isOwner(userId) {
+      return isAuthenticated() && request.auth.uid == userId;
+    }
+    
+    function isDocOwner() {
+      return isAuthenticated() && request.auth.uid == resource.data.userId;
+    }
+
+    function isAdmin() {
+      return isAuthenticated() &&
+        ((exists(/databases/$(database)/documents/users/$(request.auth.uid)) && 
+          get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin') ||
+          (request.auth.token.email == "sangam191181@gmail.com" && request.auth.token.email_verified == true));
+    }
+
+    // Validate that the document contains only the allowed fields
+    function hasOnlyAllowedFields(fields) {
+      return request.resource.data.keys().hasOnly(fields);
+    }
+
+    // Verify UID hasn't been tampered with on create
+    function uidUnchanged() {
+      return !('userId' in request.resource.data) ||
+        request.resource.data.userId == request.auth.uid;
+    }
+
+    // Ensure userId field is not modified on update
+    function uidNotModified() {
+      return !('userId' in request.resource.data) ||
+        request.resource.data.userId == resource.data.userId;
+    }
+
+    // ===============================================================
+    // Domain Validators
+    // ===============================================================
+
+    function isValidUser(data) {
+      return data.keys().hasAll(['uid', 'email']) &&
+             data.uid is string &&
+             data.email is string &&
+             data.email.size() < 255;
+    }
+
+    function isValidHabit(data) {
+      return data.userId is string &&
+             data.name is string && data.name.size() > 0 && data.name.size() < 100 &&
+             (!('streak' in data) || data.streak is number) &&
+             (!('completedToday' in data) || data.completedToday is bool);
+    }
+
+    // ===============================================================
+    // Rules
+    // ===============================================================
+
+    function isValidSkincareLog(data) {
+      return data.userId is string &&
+             (!('mood' in data) || data.mood in ['happy', 'neutral', 'tired', 'stressed']) &&
+             (!('stress' in data) || (data.stress is number && data.stress >= 0 && data.stress <= 100)) &&
+             (!('lesson' in data) || (data.lesson is string && data.lesson.size() < 1000)) &&
+             (!('metrics' in data) || (data.metrics is map && 
+               (!('hydration' in data.metrics) || data.metrics.hydration is number) &&
+               (!('clarity' in data.metrics) || data.metrics.clarity is number) &&
+               (!('texture' in data.metrics) || data.metrics.texture is number)
+             ));
+    }
+
+    match /users/{userId} {
+      allow read: if isOwner(userId) || isAdmin();
+      allow create: if isOwner(userId) && isValidUser(request.resource.data);
+      allow update: if (isOwner(userId) || isAdmin()) && isValidUser(request.resource.data);
+    }
+    
+    match /workouts/{workoutId} {
+      allow read: if isDocOwner() || isAdmin();
+      allow create: if isAuthenticated() && request.resource.data.userId == request.auth.uid;
+      allow update: if (isDocOwner() || isAdmin()) && uidNotModified();
+      allow delete: if isDocOwner() || isAdmin();
+    }
+    
+    match /exercises/{exerciseId} {
+      allow read: if isDocOwner() || isAdmin();
+      allow create: if isAuthenticated() && request.resource.data.userId == request.auth.uid;
+      allow update: if (isDocOwner() || isAdmin()) && uidNotModified();
+      allow delete: if isDocOwner() || isAdmin();
+    }
+    
+    match /skincare_logs/{logId} {
+      allow read: if isDocOwner() || isAdmin();
+      allow create: if isAuthenticated() && request.resource.data.userId == request.auth.uid && isValidSkincareLog(request.resource.data);
+      allow update: if (isDocOwner() || isAdmin()) && uidNotModified() && isValidSkincareLog(request.resource.data);
+      allow delete: if isDocOwner() || isAdmin();
+    }
+
+    match /routine_tasks/{taskId} {
+      allow read: if isDocOwner() || isAdmin();
+      allow create: if isAuthenticated() && request.resource.data.userId == request.auth.uid;
+      allow update: if (isDocOwner() || isAdmin()) && uidNotModified();
+      allow delete: if isDocOwner() || isAdmin();
+    }
+    
+    match /sleep_logs/{logId} {
+      allow read: if isDocOwner() || isAdmin();
+      allow create: if isAuthenticated() && request.resource.data.userId == request.auth.uid;
+      allow update: if (isDocOwner() || isAdmin()) && uidNotModified();
+      allow delete: if isDocOwner() || isAdmin();
+    }
+    
+    match /tasks/{taskId} {
+      allow read: if isDocOwner() || isAdmin();
+      allow create: if isAuthenticated() && request.resource.data.userId == request.auth.uid;
+      allow update: if (isDocOwner() || isAdmin()) && uidNotModified();
+      allow delete: if isDocOwner() || isAdmin();
+    }
+    
+    match /habits/{habitId} {
+      allow read: if isDocOwner() || isAdmin();
+      allow create: if isAuthenticated() && request.resource.data.userId == request.auth.uid && isValidHabit(request.resource.data);
+      allow update: if (isDocOwner() || isAdmin()) && uidNotModified() && isValidHabit(request.resource.data);
+      allow delete: if isDocOwner() || isAdmin();
+    }
+
+    match /body_metrics/{metricId} {
+      allow read: if isDocOwner() || isAdmin();
+      allow create: if isAuthenticated() && request.resource.data.userId == request.auth.uid;
+      allow update: if (isDocOwner() || isAdmin()) && uidNotModified();
+      allow delete: if isDocOwner() || isAdmin();
+    }
+
+    match /timeline_events/{eventId} {
+      allow read: if isDocOwner() || isAdmin();
+      allow create: if isAuthenticated() && request.resource.data.userId == request.auth.uid;
+      allow update: if (isDocOwner() || isAdmin()) && uidNotModified();
+      allow delete: if isDocOwner() || isAdmin();
+    }
+
+    match /deep_work_targets/{targetId} {
+      allow read: if isDocOwner() || isAdmin();
+      allow create: if isAuthenticated() && request.resource.data.userId == request.auth.uid;
+      allow update: if (isDocOwner() || isAdmin()) && uidNotModified();
+      allow delete: if isDocOwner() || isAdmin();
+    }
+  }
+}

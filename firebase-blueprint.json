@@ -1,0 +1,157 @@
+{
+  "entities": {
+    "user": {
+      "title": "User Profile",
+      "description": "Stores user-specific settings and profile information.",
+      "type": "object",
+      "properties": {
+        "uid": { "type": "string" },
+        "email": { "type": "string", "format": "email" },
+        "displayName": { "type": "string" },
+        "photoURL": { "type": "string" },
+        "lifeScore": { "type": "number" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["uid", "email"]
+    },
+    "workout": {
+      "title": "Workout Session",
+      "description": "Represents a single gym session.",
+      "type": "object",
+      "properties": {
+        "userId": { "type": "string" },
+        "name": { "type": "string" },
+        "date": { "type": "string", "format": "date-time" },
+        "duration": { "type": "number" },
+        "status": { "type": "string", "enum": ["planned", "active", "completed"] }
+      },
+      "required": ["userId", "name", "date"]
+    },
+    "exercise": {
+      "title": "Exercise Log",
+      "description": "Logs for specific exercises within a workout.",
+      "type": "object",
+      "properties": {
+        "workoutId": { "type": "string" },
+        "userId": { "type": "string" },
+        "name": { "type": "string" },
+        "sets": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "reps": { "type": "number" },
+              "weight": { "type": "number" }
+            }
+          }
+        }
+      },
+      "required": ["workoutId", "userId", "name"]
+    },
+    "skincare_log": {
+      "title": "Skincare Log",
+      "description": "Daily skincare routine tracking and AI analysis.",
+      "type": "object",
+      "properties": {
+        "userId": { "type": "string" },
+        "date": { "type": "string", "format": "date-time" },
+        "routineType": { "type": "string", "enum": ["AM", "PM"] },
+        "products": { "type": "array", "items": { "type": "string" } },
+        "photoUrl": { "type": "string" },
+        "redness": { "type": "number" },
+        "texture": { "type": "number" },
+        "clarity": { "type": "number" },
+        "aiFeedback": { "type": "string" }
+      },
+      "required": ["userId", "date"]
+    },
+    "sleep_log": {
+      "title": "Sleep Log",
+      "description": "Tracking sleep duration and quality.",
+      "type": "object",
+      "properties": {
+        "userId": { "type": "string" },
+        "date": { "type": "string", "format": "date-time" },
+        "duration": { "type": "number" },
+        "quality": { "type": "number" }
+      },
+      "required": ["userId", "date", "duration"]
+    },
+    "task": {
+      "title": "Daily Task",
+      "description": "Tasks for the day planner.",
+      "type": "object",
+      "properties": {
+        "userId": { "type": "string" },
+        "title": { "type": "string" },
+        "priority": { "type": "string", "enum": ["low", "medium", "high", "critical"] },
+        "completed": { "type": "boolean" },
+        "date": { "type": "string", "format": "date-time" }
+      },
+      "required": ["userId", "title", "date"]
+    },
+    "habit": {
+      "title": "Habit Tracker",
+      "description": "Daily habit tracking.",
+      "type": "object",
+      "properties": {
+        "userId": { "type": "string" },
+        "name": { "type": "string" },
+        "streak": { "type": "number" },
+        "completedToday": { "type": "boolean" },
+        "history": { "type": "object" }
+      },
+      "required": ["userId", "name"]
+    },
+    "body_metrics": {
+      "title": "Body Metrics",
+      "description": "Tracking physical measurements.",
+      "type": "object",
+      "properties": {
+        "userId": { "type": "string" },
+        "date": { "type": "string", "format": "date-time" },
+        "weight": { "type": "number" },
+        "bodyFat": { "type": "number" },
+        "muscleMass": { "type": "number" }
+      },
+      "required": ["userId", "date", "weight"]
+    },
+    "timeline_event": {
+      "title": "Timeline Event",
+      "description": "Events and schedule items.",
+      "type": "object",
+      "properties": {
+        "userId": { "type": "string" },
+        "title": { "type": "string" },
+        "startTime": { "type": "string", "format": "date-time" },
+        "endTime": { "type": "string", "format": "date-time" },
+        "type": { "type": "string", "enum": ["health", "productivity", "human", "other"] }
+      },
+      "required": ["userId", "title", "startTime", "endTime"]
+    },
+    "deep_work_target": {
+      "title": "Deep Work Target",
+      "description": "Daily deep work goals and actuals.",
+      "type": "object",
+      "properties": {
+        "userId": { "type": "string" },
+        "date": { "type": "string", "format": "date" },
+        "targetHours": { "type": "number" },
+        "actualHours": { "type": "number" }
+      },
+      "required": ["userId", "date", "targetHours"]
+    }
+  },
+  "firestore": {
+    "/users/{userId}": { "schema": "user", "description": "User profile data" },
+    "/workouts/{workoutId}": { "schema": "workout", "description": "Workout sessions" },
+    "/exercises/{exerciseId}": { "schema": "exercise", "description": "Exercise details" },
+    "/skincare_logs/{logId}": { "schema": "skincare_log", "description": "Skincare tracking" },
+    "/sleep_logs/{logId}": { "schema": "sleep_log", "description": "Sleep tracking" },
+    "/tasks/{taskId}": { "schema": "task", "description": "Daily tasks" },
+    "/habits/{habitId}": { "schema": "habit", "description": "Habit tracking" },
+    "/body_metrics/{metricId}": { "schema": "body_metrics", "description": "Body measurements" },
+    "/timeline_events/{eventId}": { "schema": "timeline_event", "description": "Schedule events" },
+    "/deep_work_targets/{targetId}": { "schema": "deep_work_target", "description": "Deep work goals" }
+  }
+}

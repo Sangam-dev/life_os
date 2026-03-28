@@ -1,0 +1,7 @@
+{
+  "name": "LifeOS: Personal Optimization",
+  "description": "A high-performance self-improvement dashboard for tracking gym, skincare, sleep, and daily execution with AI-driven insights.",
+  "requestFramePermissions": [
+    "camera"
+  ]
+}
