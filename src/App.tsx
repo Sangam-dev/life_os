@@ -21,19 +21,15 @@ export default function App() {
     const unsubscribe = onAuthStateChanged(auth, async (u) => {
       if (u) {
         try {
-          // Ensure user profile exists
-          const profile = await dbService.getUserProfile(u.uid);
-          if (!profile) {
-            await dbService.updateUserProfile(u.uid, {
-              uid: u.uid,
-              displayName: u.displayName || 'User',
-              email: u.email || '',
-              photoURL: u.photoURL || '',
-              lifeScore: 50,
-              streak: 0,
-              createdAt: new Date().toISOString()
-            });
-          }
+          await dbService.bootstrapUser({
+            uid: u.uid,
+            displayName: u.displayName || 'User',
+            email: u.email || '',
+            photoURL: u.photoURL || '',
+            lifeScore: 50,
+            streak: 0,
+            createdAt: new Date().toISOString()
+          });
         } catch (error) {
           console.error('Failed to initialize user profile:', error);
         }

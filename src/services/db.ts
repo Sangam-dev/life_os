@@ -1,3 +1,10 @@
-// Use localStorage-based storage instead of Firestore for complete offline functionality
-// and to avoid cloud database quota limits. Keep Firebase Auth, discard Firestore.
-export { dbService } from './localStorage';
+// IndexedDB-backed offline-first storage service.
+export { dbService } from './lifeosDb';
+export type {
+	DashboardSnapshot,
+	InsightRecord,
+	LifeOSSnapshot,
+	LifeScoreRecord,
+	PredictionRecord,
+	WeeklyReview
+} from './intelligence';

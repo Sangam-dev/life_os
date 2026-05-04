@@ -17,6 +17,7 @@ import { cn, getLifeScoreColor } from '../lib/utils';
 import { dbService } from '../services/db';
 import { auth } from '../firebase';
 import { UserProfile, Workout, SkincareLog, SleepLog, Habit, BodyMetrics, DeepWorkTarget } from '../types';
+import type { DashboardSnapshot } from '../services/db';
 import { aiService } from '../services/ai';
 
 export const Dashboard: React.FC = () => {
@@ -28,6 +29,7 @@ export const Dashboard: React.FC = () => {
   const [bodyMetrics, setBodyMetrics] = useState<BodyMetrics[]>([]);
   const [deepWorkTargets, setDeepWorkTargets] = useState<DeepWorkTarget[]>([]);
   const [aiInsights, setAiInsights] = useState<{ title: string; description: string; type: string; impact: string; action: string }[]>([]);
+  const [dashboardState, setDashboardState] = useState<DashboardSnapshot | null>(null);
   const [loadingAI, setLoadingAI] = useState(false);
   const user = auth.currentUser;
 
@@ -40,6 +42,7 @@ export const Dashboard: React.FC = () => {
       const unsubHabits = dbService.subscribeHabits(user.uid, setHabits);
       const unsubMetrics = dbService.subscribeBodyMetrics(user.uid, setBodyMetrics);
       const unsubDeepWork = dbService.subscribeDeepWorkTargets(user.uid, setDeepWorkTargets);
+      const unsubDashboard = dbService.subscribeDashboardState(user.uid, setDashboardState);
 
       return () => {
         unsubProfile();
@@ -49,6 +52,7 @@ export const Dashboard: React.FC = () => {
         unsubHabits();
         unsubMetrics();
         unsubDeepWork();
+        unsubDashboard();
       };
     }
   }, [user]);
@@ -238,6 +242,29 @@ export const Dashboard: React.FC = () => {
           </div>
         </div>
       </section>
+
+      {dashboardState && (
+        <section className="space-y-4">
+          <div className="flex items-center justify-between">
+            <h3 className="text-xl font-bold">Action Board</h3>
+            <span className="text-[10px] text-zinc-500 uppercase tracking-widest">Derived from local engine</span>
+          </div>
+          <div className="grid gap-4">
+            <div className="p-5 bg-gradient-to-br from-cyan-500/10 to-white/5 border border-cyan-500/20 rounded-[28px] space-y-2">
+              <div className="text-[10px] font-bold text-cyan-400 uppercase tracking-widest">Today\'s Priority</div>
+              <div className="text-lg font-semibold leading-snug">{dashboardState.todayPriority}</div>
+            </div>
+            <div className="p-5 bg-gradient-to-br from-red-500/10 to-white/5 border border-red-500/20 rounded-[28px] space-y-2">
+              <div className="text-[10px] font-bold text-red-400 uppercase tracking-widest">Biggest Risk</div>
+              <div className="text-lg font-semibold leading-snug">{dashboardState.biggestRisk}</div>
+            </div>
+            <div className="p-5 bg-gradient-to-br from-amber-500/10 to-white/5 border border-amber-500/20 rounded-[28px] space-y-2">
+              <div className="text-[10px] font-bold text-amber-400 uppercase tracking-widest">Suggested Action</div>
+              <div className="text-lg font-semibold leading-snug">{dashboardState.suggestedAction}</div>
+            </div>
+          </div>
+        </section>
+      )}
 
       {/* Vitals Grid */}
       <section className="space-y-6">

@@ -90,7 +90,7 @@ export const AIInsights: React.FC = () => {
         habits,
         bodyMetrics,
         deepWork: todayDeepWork
-      });
+      }, user.uid);
       
       const aiMsg = {
         role: 'ai',

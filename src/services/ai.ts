@@ -1,5 +1,6 @@
 import { GoogleGenAI } from "@google/genai";
 import { Workout, SkincareLog, SleepLog, Habit, BodyMetrics, TimelineEvent, DeepWorkTarget } from '../types';
+import { dbService } from './db';
 
 const rawGeminiApiKey = import.meta.env.VITE_GEMINI_API_KEY || import.meta.env.GEMINI_API_KEY || '';
 const geminiApiKey = String(rawGeminiApiKey).replace(/^['\"]|['\"]$/g, '').trim();
@@ -79,6 +80,7 @@ const buildLocalCoachReply = (message: string, data?: {
   habits: Habit[];
   bodyMetrics: BodyMetrics[];
   deepWork: DeepWorkTarget | null;
+  memory?: { content: string }[];
 }) => {
   if (!data) {
     return `## Local Coach\n\nNetwork AI is unavailable right now.\n\n1. Start by logging sleep, one workout, and your daily habits.\n2. Ask again and I will generate data-driven recommendations from your logs.`;
@@ -89,8 +91,9 @@ const buildLocalCoachReply = (message: string, data?: {
   const latestSleep = data.sleep[0];
   const latestWorkout = data.workouts[0];
   const deepWork = data.deepWork;
+  const memoryLine = data.memory?.length ? `\n- Recent memory: ${data.memory.slice(0, 3).map((entry) => entry.content).join(' | ')}` : '';
 
-  return `## Local Coach\n\nQuery: **${message}**\n\n### Metrics Snapshot\n- Habits today: **${habitDone}/${habitTotal || 0}**\n- Latest sleep: **${latestSleep ? `${latestSleep.hours}h (quality ${latestSleep.quality}/100)` : 'No data'}**\n- Latest workout: **${latestWorkout ? latestWorkout.name : 'No data'}**\n- Deep work today: **${deepWork ? `${deepWork.actualHours}/${deepWork.targetHours}h` : 'No data'}**\n\n### Protocol\n1. Finish one incomplete habit before end of day.\n2. Add one focused work block (45 minutes).\n3. Keep logging so personalized AI coaching can be re-enabled once API access is available.`;
+  return `## Local Coach\n\nQuery: **${message}**\n\n### Metrics Snapshot\n- Habits today: **${habitDone}/${habitTotal || 0}**\n- Latest sleep: **${latestSleep ? `${latestSleep.hours}h (quality ${latestSleep.quality}/100)` : 'No data'}**\n- Latest workout: **${latestWorkout ? latestWorkout.name : 'No data'}**\n- Deep work today: **${deepWork ? `${deepWork.actualHours}/${deepWork.targetHours}h` : 'No data'}**${memoryLine}\n\n### Protocol\n1. Finish one incomplete habit before end of day.\n2. Add one focused work block (45 minutes).\n3. Keep logging so personalized AI coaching can be re-enabled once API access is available.`;
 };
 
 export const aiService = {
@@ -219,14 +222,29 @@ export const aiService = {
     habits: Habit[];
     bodyMetrics: BodyMetrics[];
     deepWork: DeepWorkTarget | null;
-  }) {
+  }, userId?: string) {
+    const memory = userId ? await dbService.getAiMemory(userId, 'coach') : [];
+
     if (!ai) {
-      return buildLocalCoachReply(message, data);
+      const reply = buildLocalCoachReply(message, {
+        ...(data || { workouts: [], skincare: [], sleep: [], habits: [], bodyMetrics: [], deepWork: null }),
+        memory,
+      });
+
+      if (userId) {
+        await dbService.upsertAiMemory(userId, 'coach', `offline-${Date.now()}`, `User: ${message}\nReply: ${reply.slice(0, 600)}`, 1);
+      }
+
+      return reply;
     }
 
     try {
       let dataContext = "";
       if (data) {
+        const memoryContext = memory.length
+          ? `\n        RECENT MEMORY:\n        ${memory.slice(0, 5).map((entry) => `- ${entry.content}`).join('\n        ')}`
+          : '';
+
         dataContext = `
         CURRENT USER DATA CONTEXT:
         - Recent Workouts: ${JSON.stringify(data.workouts.slice(0, 3))}
@@ -235,6 +253,7 @@ export const aiService = {
         - Body Metrics: ${JSON.stringify(data.bodyMetrics.slice(0, 3))}
         - Deep Work Today: ${JSON.stringify(data.deepWork)}
         - Habit Completion: ${data.habits.filter(h => h.completedToday).length}/${data.habits.length} habits completed today. Details: ${JSON.stringify(data.habits.map(h => ({name: h.name, completed: h.completedToday, streak: h.streak})))}
+        ${memoryContext}
         
         CRITICAL RULE: Base your answers on the CURRENT USER DATA CONTEXT above whenever relevant to the user's query. Do not invent or hallucinate data. If they ask about their sleep, look at the Recent Sleep data. If they ask about gym progress, look at Recent Workouts and Body Metrics.
         `;
@@ -253,13 +272,37 @@ export const aiService = {
         - Maintain a futuristic, OS-like tone.` }] });
 
       if (!response) {
-        return buildLocalCoachReply(message, data);
+        const reply = buildLocalCoachReply(message, {
+          ...(data || { workouts: [], skincare: [], sleep: [], habits: [], bodyMetrics: [], deepWork: null }),
+          memory,
+        });
+
+        if (userId) {
+          await dbService.upsertAiMemory(userId, 'coach', `fallback-${Date.now()}`, `User: ${message}\nReply: ${reply.slice(0, 600)}`, 1);
+        }
+
+        return reply;
       }
 
-      return response.text || "I'm processing your request.";
+      const text = response.text || "I'm processing your request.";
+
+      if (userId) {
+        await dbService.upsertAiMemory(userId, 'coach', `response-${Date.now()}`, `User: ${message}\nResponse: ${text.slice(0, 800)}`, 2);
+      }
+
+      return text;
     } catch (error) {
       console.error("AI Chat Error:", error);
-      return buildLocalCoachReply(message, data);
+      const reply = buildLocalCoachReply(message, {
+        ...(data || { workouts: [], skincare: [], sleep: [], habits: [], bodyMetrics: [], deepWork: null }),
+        memory,
+      });
+
+      if (userId) {
+        await dbService.upsertAiMemory(userId, 'coach', `error-${Date.now()}`, `User: ${message}\nReply: ${reply.slice(0, 600)}`, 1);
+      }
+
+      return reply;
     }
   }
 };
